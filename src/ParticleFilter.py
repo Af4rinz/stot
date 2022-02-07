@@ -23,16 +23,14 @@ class State:
         self.y_dot = y_dot
         self.a_dot = a_dot
 
-    def draw_point(self, frame, path=None):
+    def draw_point(self, frame, path):
         cv2.circle(frame, center=(self.x, self.y), radius=1, color=(255, 0, 255), thickness=1)
-        if path is not None:
-            cv2.imwrite(path, frame)
+        cv2.imwrite(path, frame)
         return frame
     
-    def draw_box(self, frame, path=None):
+    def draw_box(self, frame, path):
         cv2.rectangle(frame, (self.x - self.Hx, self.y - self.Hy), ( self.x + self.Hx, self.y + self.Hy), (0, 0, 255),thickness=2)
-        if path is not None:
-            cv2.imwrite(path, frame)
+        cv2.imwrite(path, frame)
         return frame
     
     def __str__(self):
@@ -55,14 +53,10 @@ class Histogram:
                 return i
             if val >= self.bins[-1] and val <= self.max_range:
                 return self.size - 1
-        print(val)
-        print(self.bins)
 
 class ParticleFilter:
     DELTA_T = 0.05
     VELOCITY_DISTURB = 4.0
-    SCALE_DISTURB = 0.0
-    SCALE_CHANGE_D = 0.001
 
     def __init__(self, frames, init_x, init_y, init_Hx, init_Hy,
     particle_count=50, out_path='../output'):
@@ -73,8 +67,8 @@ class ParticleFilter:
         self.out_path = out_path
 
         init_state = State(x=init_x, y=init_y, Hy=init_Hy, Hx=init_Hx)
-        init_state.draw_point(frames[self.f_idx], path=os.path.join(out_path, f'{self.f_idx}_points.jpg'))
-        init_state.draw_box(frames[self.f_idx], path=os.path.join(out_path, f'{self.f_idx}.jpg'))
+        init_state.draw_point(frames[self.f_idx], path=out_path+'/%04d.jpg'%(self.f_idx + 1))
+        init_state.draw_box(frames[self.f_idx], path=out_path+'/%04d.jpg'%(self.f_idx + 1))
         self.state = init_state
         random_list = np.random.normal(scale=0.4, size=(particle_count, 7))
         self.weights = [1.0 / particle_count] * particle_count
@@ -82,11 +76,11 @@ class ParticleFilter:
         for i in range(particle_count):
             x0 = int(init_state.x + random_list[i, 0] * init_state.Hx)
             y0 = int(init_state.y + random_list[i, 1] * init_state.Hy)
-            x0_H = int(init_state.Hx + random_list[i, 4] * self.SCALE_DISTURB)
-            y0_H = int(init_state.Hy + random_list[i, 5] * self.SCALE_DISTURB)
+            x0_H = int(init_state.Hx)
+            y0_H = int(init_state.Hy)
             x0_d = init_state.x_dot + random_list[i, 2] * self.VELOCITY_DISTURB
             y0_d = init_state.y_dot + random_list[i, 3] * self.VELOCITY_DISTURB
-            a0_d = init_state.a_dot + random_list[i, 6] * self.SCALE_CHANGE_D
+            a0_d = init_state.a_dot + random_list[i, 6] * 0.0001
 
             particle = State(x0, y0, x0_H, y0_H, x0_d, y0_d, a0_d)
             particle.draw_point(frame=frames[self.f_idx], path=self.out_path+'/%04d.jpg'%(self.f_idx+1))
@@ -116,7 +110,6 @@ class ParticleFilter:
         @brief Selects N samples from set S[t-1] with some probability π[t-1]. 
         @return Returns -1 if f_idx is out of range.
         """
-
         if self.f_idx < len(self.frames) - 1:
             self.f_idx += 1
         else:
@@ -132,7 +125,7 @@ class ParticleFilter:
                 x_dot=self.particles[i].x_dot, y_dot=self.particles[i].y_dot, a_dot=self.particles[i].a_dot
                 ))
         self.particles = new_particles
-        return 0
+        return self.weights, indices
     
     def propagate(self):
         """ 
@@ -143,13 +136,13 @@ class ParticleFilter:
         temp = []
         for particle in self.particles:
             random_nums = np.random.normal(0, 0.4, 7)
-            particle.x = int(particle.x+particle.x_dot*self.DELTA_T+random_nums[0]*particle.Hx+0.5)
-            particle.y = int(particle.y+particle.y_dot*self.DELTA_T+random_nums[1]*particle.Hy+0.5)
-            particle.x_dot = particle.x_dot+random_nums[2]*self.VELOCITY_DISTURB
-            particle.y_dot = particle.y_dot+random_nums[3]*self.VELOCITY_DISTURB
-            particle.Hx = int(particle.Hx*(particle.a_dot+1)+random_nums[4]*self.SCALE_DISTURB+0.5)
-            particle.Hy = int(particle.Hy*(particle.a_dot+1)+random_nums[5]*self.SCALE_DISTURB+0.5)
-            particle.a_dot = particle.a_dot+random_nums[6]*self.SCALE_CHANGE_D
+            particle.x = int(particle.x + particle.x_dot * self.DELTA_T + random_nums[0] * particle.Hx + 0.5)
+            particle.y = int(particle.y + particle.y_dot * self.DELTA_T + random_nums[1] * particle.Hy + 0.5)
+            particle.x_dot = particle.x_dot + random_nums[2] * self.VELOCITY_DISTURB
+            particle.y_dot = particle.y_dot + random_nums[3] * self.VELOCITY_DISTURB
+            particle.Hx = int(particle.Hx * (particle.a_dot + 1) + 0.5)
+            particle.Hy = int(particle.Hy * (particle.a_dot + 1) + 0.5)
+            particle.a_dot = particle.a_dot + random_nums[6] * 0.0001
             temp.append(particle.draw_point(self.frames[self.f_idx], self.out_path+'/%04d.jpg'%(self.f_idx+1)))
         return temp
     
@@ -210,7 +203,7 @@ class ParticleFilter:
         self.state.x_dot = np.sum(np.array([s.x_dot for s in self.particles]) * self.weights)
         self.state.y_dot = np.sum(np.array([s.y_dot for s in self.particles]) * self.weights)
         self.state.a_dot = np.sum(np.array([s.a_dot for s in self.particles]) * self.weights)
-        print(self.state)
+        # print(self.state)
         temp = self.state.draw_box(self.frames[self.f_idx], self.out_path+'/%04d.jpg'%(self.f_idx + 1))
         return temp
     

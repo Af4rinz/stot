@@ -1,0 +1,7 @@
+/output/*.jpg
+*.pdf
+*.docx
+*.html
+/MoVi/*
+/MOT/*
+/src/__pycache__/*

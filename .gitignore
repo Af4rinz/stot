@@ -1,7 +1,11 @@
 /output/*.jpg
-*.pdf
 *.docx
 *.html
+*.mp4
 /MoVi/*
 /MOT/*
 /src/__pycache__/*
+*.tex
+*.zip
+output_33_0.png
+An Adaptive*

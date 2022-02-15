@@ -30,7 +30,7 @@ def get_points(img):
     cv2.destroyAllWindows()
 
 def save_output(path='./output/', framerate=30, output_name='output.mp4'):
-    return os.system(f"ffmpeg -r {framerate} -i {path}%4d.jpg -crf 15 -b 800k -vcodec mpeg4 -y {output_name}")
+    return os.system(f"ffmpeg -r {framerate} -i {path}%4d.jpg -crf 8 -c:v libx264 -y {output_name}")
 
 def clean_frames(frames, background, k=5):
     """
@@ -83,8 +83,13 @@ def get_index_cmap(count, cmap_name='viridis'):
     """
     colours = []
     cmap = plt.cm.get_cmap(cmap_name)
+    if count == 1:
+        v = count
+        r, g, b = [int(x) for x in cmap(v, bytes=True)[:3]]
+        colours.append((b, g, r))
+        return colours
     for i in range(count):
-        v = i / (count)
+        v = i / (count - 1)
         r, g, b = [int(x) for x in cmap(v, bytes=True)[:3]]
         colours.append((b, g, r))
     return colours

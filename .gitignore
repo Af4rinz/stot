@@ -9,3 +9,10 @@
 *.zip
 output_33_0.png
 An Adaptive*
+*.aux
+*toc
+*.log
+*.out
+*.blg
+*.bbl
+/*_files/*

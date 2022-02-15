@@ -25,10 +25,6 @@ class KalmanFilter:
 
     def __init__(self):
         dt = 1
-        #position measurement error
-        Bx = 0.001
-        #velocity measurement error
-        Bv = 0.5
         # state estimate
         self.xk = np.zeros((4, 1))
         # covariance matrix
@@ -53,10 +49,15 @@ class KalmanFilter:
                 [0, 1]
             ]) 
         # control matrix
-        self.B = np.array([dt ** 2 / 2, dt ** 2 / 2, dt, dt])
+        self.B = np.array([
+            [dt ** 2 / 2, 0],
+            [0, dt ** 2 / 2],
+            [dt, 0],
+            [0, dt]
+        ])
 
     def predict(self):
-        u = 0
+        u = np.array([0.001, 0.001])
         # state estimate X
         self.xk = np.dot(self.A, self.xk) + np.dot(self.B, u)
         self.Pk = np.dot(np.dot(self.A, self.Pk), self.A.T) + self.Q
@@ -82,20 +83,7 @@ class KalmanFilter:
         # x'k = xk + K * (zk - H * xk)
         self.xk = self.xk + np.dot(kalman_gain, y)
 
-        # identity matrix
-        I = np.eye(n)
-        # P'k = (-K * H * Pk) * (-K * H)T + K * R * K.T
-        # self.Pk = np.dot(
-        #         np.dot(
-        #             I - np.dot(kalman_gain, self.H),
-        #             self.Pk
-        #         ),
-        #         (I - np.dot(kalman_gain, self.H)).T
-        #     ) \
-        #     + np.dot(
-        #             np.dot(kalman_gain, self.R), 
-        #             kalman_gain.T
-        #         )
+        # P'k = Pk - (K * H * Pk)
         self.Pk = self.Pk - np.dot(np.dot(kalman_gain, self.H), self.Pk)
         return self.xk
     
